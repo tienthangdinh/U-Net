@@ -1,5 +1,6 @@
 import torch
-from torchvision import transforms
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
 from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
@@ -22,9 +23,9 @@ IMAGE_HEIGHT = 160  # 1280 originally
 IMAGE_WIDTH = 240  # 1918 originally
 PIN_MEMORY = True
 LOAD_MODEL = False
-TRAIN_IMG_DIR = "data/train_images/"
+TRAIN_IMG_DIR = "data/train/"
 TRAIN_MASK_DIR = "data/train_masks/"
-VAL_IMG_DIR = "data/train_images/"
+VAL_IMG_DIR = "data/train/" #should change this because this dataset is too huge
 VAL_MASK_DIR = "data/train_masks/"
 
 def train_fn(loader, model, optimizer, loss_fn, scaler):
@@ -51,21 +52,32 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
 
 def main():
 
-    train_transform = transforms.Compose([
-        transforms.Resize((IMAGE_HEIGHT, IMAGE_WIDTH)), #https://pytorch.org/vision/0.9/transforms.html
-        transforms.RandomRotation(degree=35),
-        transforms.RandomHorizontalFlip(p=0.5),
-        transforms.RandomVerticalFlip(p=0.1),
-        transforms.ToTensor(), #convert a PIL Image or numpy.ndarray => Tensor (C,H,W) (the input image is scaled to [0 - 1]) => should not use this when transforming target image mask
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]) #apply 3 values for each channel as the first dimension (we know color channel, but for pytorch its simply assume the first dimension)
-    ])
+    train_transform = A.Compose(
+        [
+            A.Resize(height=IMAGE_HEIGHT, width=IMAGE_WIDTH),
+            A.Rotate(limit=35, p=1.0),
+            A.HorizontalFlip(p=0.5),
+            A.VerticalFlip(p=0.1),
+            A.Normalize(
+                mean=[0.0, 0.0, 0.0],
+                std=[1.0, 1.0, 1.0],
+                max_pixel_value=255.0,
+            ),
+            ToTensorV2(),
+        ],
+    )
 
-
-    val_transforms = transforms.Compose([
-        transforms.Resize((IMAGE_HEIGHT, IMAGE_WIDTH)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]), 
-    ])
+    val_transforms = A.Compose(
+        [
+            A.Resize(height=IMAGE_HEIGHT, width=IMAGE_WIDTH),
+            A.Normalize(
+                mean=[0.0, 0.0, 0.0],
+                std=[1.0, 1.0, 1.0],
+                max_pixel_value=255.0,
+            ),
+            ToTensorV2(),
+        ],
+    )
 
     model = UNET(in_channels=3, out_channels=1).to(DEVICE) #load model to device
     loss_fn = nn.BCEWithLogitsLoss() #u-net is also actually a binary classification task

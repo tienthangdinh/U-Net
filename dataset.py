@@ -23,8 +23,8 @@ class CarvanaDataset(Dataset):
         mask[mask == 255.0] = 1.0
 
         if self.transform is not None:
-            augmentations = self.transform(image=image, mask=mask)
+            augmentations = self.transform(image=image, mask=mask) #using albumentations transform here instead of pytorch because pytorch can only transform image. but albumentation can transform both input and output
             image = augmentations["image"]
-            mask = augmentations["mask"]
+            mask = augmentations["mask"] #normally no need to transform this
 
         return image, mask
